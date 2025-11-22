@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // Default stale time for queries (2 minutes)
 const DEFAULT_STALE_TIME = 1000 * 60 * 2;
 
-export function getContext(initialAuthToken?: string) {
+export function getContext() {
 	const queryClient = new QueryClient({
 		defaultOptions: {
 			queries: {
@@ -24,11 +24,6 @@ export function getContext(initialAuthToken?: string) {
 		// lazy import to avoid circular deps during generation
 		// eslint-disable-next-line @typescript-eslint/no-var-requires
 		const auth = require("../../lib/auth");
-
-		// On SSR we may pass the token into getContext
-		if (initialAuthToken && typeof auth?.initAuthForServer === "function") {
-			auth.initAuthForServer(initialAuthToken);
-		}
 
 		// On the client, ensure the generated client will call our authCallback
 		if (typeof window !== "undefined") {
