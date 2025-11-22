@@ -1,11 +1,5 @@
-import { useServerFn } from "@tanstack/react-start";
-import {
-	createContext,
-	type ReactNode,
-	useContext,
-	useEffect,
-	useState,
-} from "react";
+import { useQuery } from "@tanstack/react-query";
+import { createContext, type ReactNode, useContext } from "react";
 import { getCurrentUserFn } from "@/server/auth";
 
 type User = {
@@ -22,30 +16,28 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function useCurrentUser() {
+	return useQuery({
+		queryKey: ["auth", "currentUser"],
+		queryFn: getCurrentUserFn,
+		staleTime: 1000 * 60 * 5, // 5 minutes
+		retry: false,
+	});
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const getCurrentUser = useServerFn(getCurrentUserFn);
-	const [user, setUser] = useState<User | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
-
-	const fetchUser = async () => {
-		setIsLoading(true);
-		try {
-			const userData = await getCurrentUser();
-			setUser(userData);
-		} catch {
-			setUser(null);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: ---
-	useEffect(() => {
-		fetchUser();
-	}, []);
+	const { data: user, isLoading, refetch } = useCurrentUser();
 
 	return (
-		<AuthContext.Provider value={{ user, isLoading, refetch: fetchUser }}>
+		<AuthContext.Provider
+			value={{
+				user: user ?? null,
+				isLoading,
+				refetch: () => {
+					refetch();
+				},
+			}}
+		>
 			{children}
 		</AuthContext.Provider>
 	);

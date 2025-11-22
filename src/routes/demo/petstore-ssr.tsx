@@ -2,18 +2,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import type { Pet } from "@/api/petstore/types.gen";
 import { petstoreKeys, useFindPetsByStatus } from "@/api/petstore-hooks";
-import { useAppSession } from "@/lib/session";
 
 // Server function to fetch pets during SSR
 const getPetsSsr = createServerFn({ method: "GET" }).handler(async () => {
+	// Dynamically import to avoid module-level execution
+	const { useAppSession } = await import("@/lib/session");
+	const { Pet: PetAPI } = await import("@/api/petstore/sdk.gen");
+
 	const session = await useAppSession();
 	const token = session.data.userId
 		? `Bearer ${session.data.userId}`
 		: undefined;
 
 	// Call the generated SDK directly on the server
-	const { Pet } = await import("@/api/petstore/sdk.gen");
-	const response = await Pet.findPetsByStatus({
+	const response = await PetAPI.findPetsByStatus({
 		query: { status: ["available"] },
 		...(token && { auth: token }),
 	});
@@ -23,18 +25,21 @@ const getPetsSsr = createServerFn({ method: "GET" }).handler(async () => {
 
 export const Route = createFileRoute("/demo/petstore-ssr")({
 	component: PetstoreSSR,
-	// SSR loader - prefetches data during server rendering
-	loader: async ({ context }) => {
-		const pets = await getPetsSsr();
+	// Streaming loader - starts rendering before data is ready
+	loader: ({ context }) => {
+		// Start fetching but don't await
+		const petsPromise = getPetsSsr();
 
-		// Prefill the TanStack Query cache on the server
-		await context.queryClient.prefetchQuery({
+		// Prefill the TanStack Query cache with the promise
+		context.queryClient.prefetchQuery({
 			queryKey: petstoreKeys.petsByStatus(["available"]),
-			queryFn: async () => pets,
+			queryFn: () => petsPromise,
 		});
 
-		return { pets };
+		// Return immediately - data will stream in
+		return { petsPromise };
 	},
+	pendingComponent: () => <div>Loading pets...</div>,
 });
 
 function PetstoreSSR() {

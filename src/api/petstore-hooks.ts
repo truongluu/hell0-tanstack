@@ -5,6 +5,7 @@ import {
 	type UseQueryOptions,
 	useMutation,
 	useQuery,
+	useSuspenseQuery,
 } from "@tanstack/react-query";
 import { client } from "./petstore/client.gen";
 import { Pet, Store } from "./petstore/sdk.gen";
@@ -45,11 +46,9 @@ export function useFindPetsByStatus(
 	options?: Omit<UseQueryOptions<PetType[], Error>, "queryKey" | "queryFn">,
 	auth?: string | (() => Promise<string | undefined>),
 ) {
-	return useQuery({
+	return useSuspenseQuery({
 		queryKey: petstoreKeys.petsByStatus(status),
 		queryFn: async () => {
-			console.log("fetch on client");
-
 			const response = await Pet.findPetsByStatus({
 				query: { status },
 				auth,
@@ -71,7 +70,7 @@ export function useGetPetById(
 	>,
 	auth?: string | (() => Promise<string | undefined>),
 ) {
-	return useQuery({
+	return useSuspenseQuery({
 		queryKey: petstoreKeys.pet(petId),
 		queryFn: async () => {
 			const response = await Pet.getPetById({
@@ -158,7 +157,7 @@ export function useGetInventory(
 	>,
 	auth?: string | (() => Promise<string | undefined>),
 ) {
-	return useQuery({
+	return useSuspenseQuery({
 		queryKey: petstoreKeys.inventory(),
 		queryFn: async () => {
 			const response = await Store.getInventory({ auth });
